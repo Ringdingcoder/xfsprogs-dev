@@ -1862,6 +1862,7 @@ process_multi_fsb_objects(
 	typnm_t		btype,
 	xfs_fileoff_t	last)
 {
+	char		*dp;
 	int		ret = 0;
 
 	switch (btype) {
@@ -1902,14 +1903,16 @@ process_multi_fsb_objects(
 
 			}
 
-			if ((!obfuscate && !zero_stale_data) ||
-			     o >= mp->m_dir_geo->leafblk) {
-				ret = write_buf(iocur_top);
-				goto out_pop;
+			dp = iocur_top->data;
+			if (o >= mp->m_dir_geo->freeblk) {
+				process_dir_free_block(dp);
+			} else if (o >= mp->m_dir_geo->leafblk) {
+				process_dir_leaf_block(dp);
+			} else {
+				process_dir_data_block(
+					dp, o, last == mp->m_dir_geo->fsbcount);
 			}
 
-			process_dir_data_block(iocur_top->data, o,
-					       last == mp->m_dir_geo->fsbcount);
 			iocur_top->need_crc = 1;
 			ret = write_buf(iocur_top);
 out_pop:
