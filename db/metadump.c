@@ -2269,6 +2269,24 @@ process_inode_data(
 	return 1;
 }
 
+static int
+process_dev_inode(
+	xfs_dinode_t		*dip)
+{
+	if (XFS_DFORK_NEXTENTS(dip, XFS_ATTR_FORK) ||
+	    XFS_DFORK_NEXTENTS(dip, XFS_DATA_FORK)) {
+		if (show_warnings)
+			print_warning("inode %llu has unexpected extents",
+				      (unsigned long long)cur_ino);
+		return 0;
+	} else {
+		int used = XFS_DFORK_DPTR(dip) - (char*)dip;
+
+		memset(XFS_DFORK_DPTR(dip), 0, mp->m_sb.sb_inodesize - used);
+		return 1;
+	}
+}
+
 /*
  * when we process the inode, we may change the data in the data and/or
  * attribute fork if they are in short form and we are obfuscating names.
@@ -2321,7 +2339,9 @@ process_inode(
 		case S_IFREG:
 			success = process_inode_data(dip, TYP_DATA);
 			break;
-		default: ;
+		default:
+			success = process_dev_inode(dip);
+			break;
 	}
 	nametable_clear();
 
